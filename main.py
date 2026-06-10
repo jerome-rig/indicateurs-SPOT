@@ -11,7 +11,9 @@ st.set_page_config(page_title="Indicateurs SPOT", layout="wide")
 
 @st.cache_data
 def charger_donnees():
-    fichier = "data/input/Réunion Production 2024-2025-2026.xlsx"
+    import io, requests
+    url = "https://github.com/jerome-rig/indicateurs-SPOT/releases/download/v1.0/Reunion.Production.2024-2025-2026.xlsx"
+    fichier = io.BytesIO(requests.get(url).content)
 
     cols_communes = ['DATE', 'OTP', 'ST', 'CONF', 'NC', 'CAUSE NC', 'SOUS-CAUSE NC', 'CALE', 'AJOUT ACHE EN OP']
     cols_2025_2026 = ['Numéro de spot']
