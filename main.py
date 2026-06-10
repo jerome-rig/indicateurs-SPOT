@@ -5,7 +5,25 @@ import numpy as np
 import warnings
 warnings.filterwarnings('ignore')
 
-st.set_page_config(page_title="Indicateurs SPOT", layout="wide")
+st.set_page_config(page_title="Indicateurs SPOT", layout="wide", page_icon="🚂")
+
+# Couleurs ETF Services
+ETF_BLEU = "#1B2A6B"
+ETF_ROUGE = "#E63027"
+ETF_GRIS = "#F5F7FA"
+
+# Palette graphiques
+PALETTE = [ETF_BLEU, ETF_ROUGE, "#4A6FA5", "#A0B0D0", "#8B0000", "#6B8CBF"]
+
+# En-tête
+st.markdown(f"""
+    <div style="background-color:{ETF_BLEU}; padding:18px 24px; border-radius:8px; margin-bottom:16px; display:flex; align-items:center; gap:16px;">
+        <div style="border-left: 5px solid {ETF_ROUGE}; padding-left:14px;">
+            <span style="color:white; font-size:22px; font-weight:700; letter-spacing:1px;">🚂 INDICATEURS SPOT</span><br>
+            <span style="color:#A0B0D0; font-size:13px;">ETF Services — Suivi de production ferroviaire</span>
+        </div>
+    </div>
+""", unsafe_allow_html=True)
 
 # ─── CHARGEMENT DES DONNÉES ────────────────────────────────────────────────────
 
@@ -206,7 +224,7 @@ if page == "Indicateurs ST":
             vol_top5[vol_top5['ST'].isin(top5)], x='ST', y='count', color='ANNEE', barmode='group',
             title='Top 5 ST — Nombre de prestations par année',
             labels={'count': 'Nombre de prestations', 'ANNEE': 'Année'},
-            color_discrete_sequence=px.colors.qualitative.Set2,
+            color_discrete_sequence=PALETTE,
             text='count',
         )
         fig_top5.update_traces(textposition='outside')
@@ -411,7 +429,7 @@ elif page == "Indicateurs Production":
         fig_nc = px.bar(vol_nc, x='PERIODE', y='Nombre de sillons', color='CATEGORIE', barmode='stack',
                         title=f'Sillons circulés par mois — dont NC — {annee_nc}' + (f' — {client_nc}' if client_nc != 'TOUS' else ''),
                         category_orders={'PERIODE': NOMS_MOIS, 'CATEGORIE': ['Sans NC', 'Avec NC']},
-                        color_discrete_map={'Sans NC': '#4C9BE8', 'Avec NC': '#E8534C'},
+                        color_discrete_map={'Sans NC': ETF_BLEU, 'Avec NC': ETF_ROUGE},
                         text='Nombre de sillons')
         fig_nc.update_traces(textposition='inside')
         st.plotly_chart(fig_nc, use_container_width=True)
@@ -576,7 +594,7 @@ elif page == "Indicateurs Production":
         fig_cale = px.bar(vol_cale, x='PERIODE', y='Nombre de sillons', color='CATEGORIE', barmode='stack',
                           title=f'Sillons circulés — dont calés — {annee_cale}' + (f' — {client_cale}' if client_cale != 'TOUS' else ''),
                           category_orders={'PERIODE': NOMS_MOIS, 'CATEGORIE': ['Non calé', 'Calé']},
-                          color_discrete_map={'Non calé': '#4C9BE8', 'Calé': '#E8A44C'},
+                          color_discrete_map={'Non calé': ETF_BLEU, 'Calé': ETF_ROUGE},
                           text='Nombre de sillons')
         fig_cale.update_traces(selector={'name': 'Non calé'}, textposition='inside', insidetextanchor='start')
         fig_cale.update_traces(selector={'name': 'Calé'}, textposition='outside')
@@ -624,7 +642,7 @@ elif page == "Indicateurs Production":
         fig_ajout = px.bar(vol_ajout, x='PERIODE', y='Nombre', color='CATEGORIE', barmode='stack',
                            title=f'Acheminements ajoutés en opérationnel — {annee_ajout}' + (f' — {client_ajout}' if client_ajout != 'TOUS' else ''),
                            category_orders={'PERIODE': NOMS_MOIS, 'CATEGORIE': ['Non ajouté', 'Ajouté en OP']},
-                           color_discrete_map={'Non ajouté': '#4C9BE8', 'Ajouté en OP': '#7BC67E'},
+                           color_discrete_map={'Non ajouté': ETF_BLEU, 'Ajouté en OP': ETF_ROUGE},
                            text='Nombre')
         fig_ajout.update_traces(selector={'name': 'Non ajouté'}, textposition='inside', insidetextanchor='start')
         fig_ajout.update_traces(selector={'name': 'Ajouté en OP'}, textposition='outside')
