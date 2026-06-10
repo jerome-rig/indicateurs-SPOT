@@ -134,7 +134,7 @@ if page == "Indicateurs ST":
 
     # ── Onglet : Récapitulatif ─────────────────────────────────────────────────
     with tab_recap:
-        st.header("Prestations par ST et par année")
+        st.header("Sillons circulés par ST et par année")
 
         client_recap = st.selectbox("Client", CLIENTS, key="recap_client")
 
@@ -222,8 +222,8 @@ if page == "Indicateurs ST":
 
         fig_top5 = px.bar(
             vol_top5[vol_top5['ST'].isin(top5)], x='ST', y='count', color='ANNEE', barmode='group',
-            title='Top 5 ST — Nombre de prestations par année',
-            labels={'count': 'Nombre de prestations', 'ANNEE': 'Année'},
+            title='Top 5 ST — Nombre de sillons circulés par année',
+            labels={'count': 'Nombre de sillons circulés', 'ANNEE': 'Année'},
             color_discrete_sequence=PALETTE,
             text='count',
         )
@@ -234,7 +234,7 @@ if page == "Indicateurs ST":
     with tab_mensuel:
         st.header("Volume mensuel par ST")
 
-        st_liste = sorted(df_all[df_all['ST'] != 'INTERNE']['ST'].dropna().unique())
+        st_liste = ['TOUS'] + sorted(df_all[df_all['ST'] != 'INTERNE']['ST'].dropna().unique())
         col1, col2, col3 = st.columns(3)
         with col1:
             st_sel = st.selectbox("ST", st_liste, key="mensuel_st")
@@ -243,17 +243,27 @@ if page == "Indicateurs ST":
         with col3:
             client_mensuel = st.selectbox("Client", clients_pour_annee(annee_mensuel), key="mensuel_client")
 
-        df_mensuel = df_all[(df_all['ST'] == st_sel) & (df_all['ANNEE'] == annee_mensuel)].dropna(subset=['MOIS']).copy()
+        df_mensuel = df_all[(df_all['ST'] != 'INTERNE') & (df_all['ANNEE'] == annee_mensuel)].dropna(subset=['MOIS']).copy()
+        if st_sel != 'TOUS':
+            df_mensuel = df_mensuel[df_mensuel['ST'] == st_sel]
         if client_mensuel != 'TOUS':
             df_mensuel = df_mensuel[df_mensuel['CLIENT'] == client_mensuel]
         df_mensuel['MOIS'] = df_mensuel['MOIS'].astype(int)
 
-        vol_mensuel = df_mensuel.groupby('MOIS').size().reset_index(name='Nombre de prestations')
-        vol_mensuel['PERIODE'] = vol_mensuel['MOIS'].apply(lambda m: NOMS_MOIS[m - 1])
-
-        fig_mensuel = px.bar(vol_mensuel, x='PERIODE', y='Nombre de prestations',
-                             title=f'Volume mensuel — {st_sel} — {annee_mensuel}',
-                             category_orders={'PERIODE': NOMS_MOIS}, text='Nombre de prestations')
+        if st_sel == 'TOUS':
+            vol_mensuel = df_mensuel.groupby('MOIS').size().reset_index(name='Nombre de prestations')
+            vol_mensuel['PERIODE'] = vol_mensuel['MOIS'].apply(lambda m: NOMS_MOIS[m - 1])
+            fig_mensuel = px.bar(vol_mensuel, x='PERIODE', y='Nombre de prestations',
+                                 title=f'Volume mensuel — Tous les ST — {annee_mensuel}',
+                                 category_orders={'PERIODE': NOMS_MOIS}, text='Nombre de prestations',
+                                 color_discrete_sequence=[ETF_BLEU])
+        else:
+            vol_mensuel = df_mensuel.groupby('MOIS').size().reset_index(name='Nombre de prestations')
+            vol_mensuel['PERIODE'] = vol_mensuel['MOIS'].apply(lambda m: NOMS_MOIS[m - 1])
+            fig_mensuel = px.bar(vol_mensuel, x='PERIODE', y='Nombre de prestations',
+                                 title=f'Volume mensuel — {st_sel} — {annee_mensuel}',
+                                 category_orders={'PERIODE': NOMS_MOIS}, text='Nombre de prestations',
+                                 color_discrete_sequence=[ETF_BLEU])
         fig_mensuel.update_traces(textposition='outside')
         st.plotly_chart(fig_mensuel, use_container_width=True)
 
