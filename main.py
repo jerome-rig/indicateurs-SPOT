@@ -27,7 +27,9 @@ st.markdown(f"""
 def charger_donnees():
     import io, requests
     url = "https://github.com/jerome-rig/indicateurs-SPOT/releases/download/v1.0/Reunion.Production.2024-2025-2026.xlsx"
-    fichier = io.BytesIO(requests.get(url).content)
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    fichier = io.BytesIO(requests.get(url, verify=False).content)
 
     cols_communes = ['DATE', 'OTP', 'ST', 'CONF', 'NC', 'CAUSE NC', 'SOUS-CAUSE NC', 'CALE', 'AJOUT ACHE EN OP']
     cols_2025_2026 = ['Numéro de spot']
@@ -151,6 +153,7 @@ PAGES_CALES = [
     "Ajouts OP — Volume mensuel",
     "Ajouts OP — Tendance 3 ans",
     "Ajouts OP — Répartition par client",
+    "Sens de travail — Conformité 2026",
 ]
 
 page = st.sidebar.radio(
@@ -766,3 +769,122 @@ elif indicateur == "Ajouts OP — Répartition par client":
         st.plotly_chart(fig_ajout_cam, use_container_width=True)
     with col2:
         st.plotly_chart(fig_ajout_cl, use_container_width=True)
+
+# ── Sens de travail — Conformité 2026 ────────────────────────────────────────
+elif indicateur == "Sens de travail — Conformité 2026":
+    st.header("Sens de travail — Conformité 2026")
+    st.info("ℹ️ Ces données sont disponibles uniquement pour l'année 2026.")
+
+    client_st_conf = st.selectbox("Client", CLIENTS, key="st_conf_client")
+
+    df_st = df_all[df_all['ANNEE'] == 2026].dropna(subset=['MOIS']).copy()
+    df_st['MOIS'] = df_st['MOIS'].astype(int)
+    if client_st_conf != 'TOUS':
+        df_st = df_st[df_st['CLIENT'] == client_st_conf]
+
+    df_st['SENS_CONFORME'] = df_st['SENS DE TRAVAIL CONFORME'].apply(lambda x: str(x).strip().upper() == 'X')
+    df_st['SENS_NON_CONFORME'] = df_st['SENS DE TRAVAIL NON CONFORME'].apply(lambda x: str(x).strip().upper() == 'X')
+
+    # Seulement les sillons avec un sens de travail à respecter
+    df_avec_sens = df_st[df_st['SENS_CONFORME'] | df_st['SENS_NON_CONFORME']].copy()
+
+    n_avec_sens = len(df_avec_sens)
+    n_conf = int(df_avec_sens['SENS_CONFORME'].sum())
+    n_nc = int(df_avec_sens['SENS_NON_CONFORME'].sum())
+    n_total = len(df_st)
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Sillons avec sens de travail", f"{n_avec_sens} / {n_total}")
+    with col2:
+        st.metric("Sens conforme", f"{n_conf} ({n_conf / n_avec_sens * 100:.1f}%)" if n_avec_sens else "—")
+    with col3:
+        st.metric("Sens non conforme", f"{n_nc} ({n_nc / n_avec_sens * 100:.1f}%)" if n_avec_sens else "—")
+
+    st.markdown("---")
+
+    # Répartition globale (uniquement conforme / non conforme)
+    pie_data = pd.DataFrame({
+        'Catégorie': ['Conforme', 'Non conforme'],
+        'Nombre': [n_conf, n_nc],
+    })
+    pie_data = pie_data[pie_data['Nombre'] > 0]
+    fig_pie = px.pie(pie_data, names='Catégorie', values='Nombre',
+                     title='Répartition — Sens de travail 2026' + (f' — {client_st_conf}' if client_st_conf != 'TOUS' else ''),
+                     color='Catégorie',
+                     color_discrete_map={'Conforme': ETF_BLEU, 'Non conforme': ETF_ROUGE})
+    fig_pie.update_traces(texttemplate='%{label}<br>%{percent:.1%} (%{value})')
+
+    # Évolution mensuelle (uniquement sillons avec sens de travail)
+    conf_mensuel = df_avec_sens[df_avec_sens['SENS_CONFORME']].groupby('MOIS').size().reset_index(name='Nombre')
+    conf_mensuel['CATEGORIE'] = 'Conforme'
+    nc_mensuel = df_avec_sens[df_avec_sens['SENS_NON_CONFORME']].groupby('MOIS').size().reset_index(name='Nombre')
+    nc_mensuel['CATEGORIE'] = 'Non conforme'
+    vol_sens = pd.concat([conf_mensuel, nc_mensuel])
+    vol_sens['PERIODE'] = vol_sens['MOIS'].apply(lambda m: NOMS_MOIS[m - 1])
+    fig_bar = px.bar(vol_sens, x='PERIODE', y='Nombre', color='CATEGORIE', barmode='stack',
+                     title='Sens de travail par mois — 2026' + (f' — {client_st_conf}' if client_st_conf != 'TOUS' else ''),
+                     category_orders={'PERIODE': NOMS_MOIS, 'CATEGORIE': ['Conforme', 'Non conforme']},
+                     color_discrete_map={'Conforme': ETF_BLEU, 'Non conforme': ETF_ROUGE},
+                     text='Nombre')
+    fig_bar.update_traces(textposition='inside', insidetextanchor='middle')
+
+    col_a, col_b = st.columns(2)
+    with col_a:
+        st.plotly_chart(fig_pie, use_container_width=True)
+    with col_b:
+        st.plotly_chart(fig_bar, use_container_width=True)
+
+    # Répartition des sillons avec sens de travail par client
+    vol_par_client = df_avec_sens.groupby('CLIENT').size().reset_index(name='Nombre')
+    fig_pie_client = px.pie(vol_par_client, names='CLIENT', values='Nombre',
+                            title='Sillons avec sens de travail — par client 2026',
+                            color_discrete_sequence=PALETTE)
+    fig_pie_client.update_traces(texttemplate='%{label}<br>%{percent:.1%} (%{value})')
+    st.plotly_chart(fig_pie_client, use_container_width=True)
+
+    # Histogramme mensuel par client (une barre par client, empilée conforme/non-conforme)
+    conf_cl = df_avec_sens[df_avec_sens['SENS_CONFORME']].groupby(['MOIS', 'CLIENT']).size().reset_index(name='Nombre')
+    conf_cl['CATEGORIE'] = 'Conforme'
+    nc_cl = df_avec_sens[df_avec_sens['SENS_NON_CONFORME']].groupby(['MOIS', 'CLIENT']).size().reset_index(name='Nombre')
+    nc_cl['CATEGORIE'] = 'Non conforme'
+    vol_cl = pd.concat([conf_cl, nc_cl])
+    vol_cl['PERIODE'] = vol_cl['MOIS'].apply(lambda m: NOMS_MOIS[m - 1])
+    # Clients triés par volume décroissant
+    clients_par_volume = (
+        df_avec_sens.groupby('CLIENT').size()
+        .sort_values(ascending=False)
+        .index.tolist()
+    )
+
+    st.markdown(f"### Sens de travail par mois et par client — 2026")
+
+    for client in clients_par_volume:
+        st.markdown(
+            f"<hr style='border: 3px solid {ETF_BLEU}; margin: 8px 0 4px 0;'>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            f"<div style='background:{ETF_BLEU}; color:white; font-weight:700; font-size:14px; padding:6px 12px; border-radius:4px; margin-bottom:4px;'>{client}</div>",
+            unsafe_allow_html=True,
+        )
+        grille_cl = pd.MultiIndex.from_product(
+            [range(1, 13), ['Conforme', 'Non conforme']],
+            names=['MOIS', 'CATEGORIE']
+        )
+        df_cl = vol_cl[vol_cl['CLIENT'] == client].set_index(['MOIS', 'CATEGORIE'])
+        df_cl = df_cl.reindex(grille_cl, fill_value=0).reset_index()
+        df_cl['PERIODE'] = df_cl['MOIS'].apply(lambda m: NOMS_MOIS[m - 1])
+        fig_cl = px.bar(
+            df_cl, x='PERIODE', y='Nombre', color='CATEGORIE', barmode='stack',
+            category_orders={'PERIODE': NOMS_MOIS, 'CATEGORIE': ['Conforme', 'Non conforme']},
+            color_discrete_map={'Conforme': ETF_BLEU, 'Non conforme': ETF_ROUGE},
+            text='Nombre',
+        )
+        fig_cl.update_traces(textposition='inside', insidetextanchor='middle')
+        fig_cl.update_layout(
+            showlegend=False, height=250,
+            margin=dict(t=10, b=30, l=40, r=10),
+            yaxis_title=None,
+        )
+        st.plotly_chart(fig_cl, use_container_width=True)
