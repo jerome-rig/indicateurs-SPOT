@@ -887,7 +887,7 @@ elif indicateur == "Sens de travail — Conformité 2026":
             [range(1, 13), ['Conforme', 'Non conforme']],
             names=['MOIS', 'CATEGORIE']
         )
-        df_cl = vol_cl[vol_cl['CLIENT'] == client].set_index(['MOIS', 'CATEGORIE'])
+        df_cl = vol_cl[vol_cl['CLIENT'] == client][['MOIS', 'CATEGORIE', 'Nombre']].set_index(['MOIS', 'CATEGORIE'])
         df_cl = df_cl.reindex(grille_cl, fill_value=0).reset_index()
         df_cl['PERIODE'] = df_cl['MOIS'].apply(lambda m: NOMS_MOIS[m - 1])
         fig_cl = px.bar(
