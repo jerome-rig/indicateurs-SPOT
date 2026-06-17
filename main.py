@@ -239,6 +239,14 @@ if indicateur == "Sillons par ST":
 
     client_recap = st.selectbox("Client", CLIENTS, key="recap_client")
     df_f = df_all if client_recap == 'TOUS' else df_all[df_all['CLIENT'] == client_recap]
+
+    # Période couverte en 2026
+    mois_2026 = df_all[df_all['ANNEE'] == 2026]['MOIS'].dropna().astype(int)
+    if not mois_2026.empty:
+        label_2026 = f"2026 ({NOMS_MOIS[mois_2026.min()-1].capitalize()[:3].lower()}.–{NOMS_MOIS[mois_2026.max()-1].capitalize()[:3].lower()}.)"
+    else:
+        label_2026 = "2026"
+
     vol = df_f.groupby(['ANNEE', 'ST']).size().reset_index(name='count')
     recap = vol.pivot_table(index='ST', columns='ANNEE', values='count', aggfunc='sum').fillna(0).astype(int)
     recap.columns = [str(c) for c in recap.columns]
@@ -260,7 +268,14 @@ if indicateur == "Sillons par ST":
         'Évol. 24→25 (%)': evol(recap['2024'].sum(), recap['2025'].sum()),
         'Évol. 25→26 (%)': evol(recap['2025'].sum(), recap['2026'].sum()),
     }, index=['TOTAL GLOBAL'])
-    st.dataframe(pd.concat([externe, total_ext, interne, total_global]), use_container_width=True)
+    tableau_final = pd.concat([externe, total_ext, interne, total_global]).rename(columns={'2026': label_2026})
+    st.dataframe(
+        tableau_final.style.format({
+            'Évol. 24→25 (%)': lambda v: f"{v:+.1f} %" if v is not None and not (isinstance(v, float) and np.isnan(v)) else "—",
+            'Évol. 25→26 (%)': lambda v: f"{v:+.1f} %" if v is not None and not (isinstance(v, float) and np.isnan(v)) else "—",
+        }),
+        use_container_width=True,
+    )
 
 # ── Répartition ST ────────────────────────────────────────────────────────────
 elif indicateur == "Répartition ST":
