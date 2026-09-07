@@ -26,7 +26,7 @@ st.markdown(f"""
 @st.cache_data
 def charger_donnees():
     import io, requests
-    url = "https://github.com/jerome-rig/indicateurs-SPOT/releases/download/v1.0/Reunion.Production.2024-2025-2026.xlsx"
+    url = "https://github.com/jerome-rig/indicateurs-SPOT/releases/download/v2.0/Reunion.Production.2024-2025-2026.xlsx"
     import urllib3
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     fichier = io.BytesIO(requests.get(url, verify=False).content)
